@@ -30,7 +30,8 @@ urlpatterns = [
                   path('products/<int:id>', views.ProductDetailsView.as_view()),
                   path('reviews/<int:pk>', views.ReviewDeleteView.as_view()),
                   path('token/', ObtainAuthToken.as_view()),
-                  path("owner/", include("owner.urls"))
+                  path("owner/", include("owner.urls")),
+                  path("", include("customer.urls"))
               ] + router.urls
 
 # rsw>routers.py>Default router class>register method
