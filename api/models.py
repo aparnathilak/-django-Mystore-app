@@ -34,6 +34,12 @@ class Carts(models.Model):
     product = models.ForeignKey(Products, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
+    options = (
+        ("Order-placed", "Order-placed"),
+        ("In-cart", "In-cart"),
+        ("Cancelled", "Cancelled")
+    )
+    status = models.CharField(max_length=200, choices=options, default="In-cart")
 
 
 class Reviews(models.Model):
@@ -46,8 +52,19 @@ class Reviews(models.Model):
         return self.review
 
 
-
-
+class Orders(models.Model):
+    product = models.ForeignKey(Products, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    options = (
+        ("Order-placed", "Order-placed"),
+        ("Dispatched", "Dispatched"), 
+        ("In-transit", "In-transit"),
+        ("Cancelled", "Cancelled")
+    )
+    status = models.CharField(max_length=200, choices=options, default="Order-placed")
+    date = models.DateField(auto_now_add=True)
+    address = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20)
 
 
 

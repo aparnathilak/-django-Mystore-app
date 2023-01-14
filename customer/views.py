@@ -1,12 +1,26 @@
 from django.shortcuts import render, redirect
-from django.views.generic import CreateView, FormView, TemplateView, ListView
+from django.views.generic import CreateView, FormView, TemplateView, ListView, DetailView, View
 from customer.forms import RegistrationForm, LoginForm
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from api.models import Products
-
+from api.models import Products, Carts, Orders
+from django.db.models import Sum
+from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 # Create your views here.
+
+def signin_required(fn):
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.error(request, "Invalid session")
+            return redirect("signin")
+        else:
+            return fn(request, *args, **kwargs)
+    return wrapper
+
+decs = [signin_required, never_cache]   
+
 
 class SignUpView(CreateView):
     template_name = "signup.html"
@@ -38,10 +52,94 @@ class SigninView(FormView):
             else:
                 messages.error(request, "invalid credentials")
                 return render(request, "cust-login.html", {"form":form})
-
+@method_decorator(decs, name="dispatch")
 class HomeView(ListView):
     template_name = "cust-index.html"
     context_object_name = "products"
     model = Products
 
-    
+@method_decorator(decs, name="dispatch")   
+class ProductDetailView(DetailView):
+    template_name = "cust-productdetail.html"
+    context_object_name = "product"
+    pk_url_kwarg = "id"
+    model= Products
+
+decs
+def add_to_cart(request, *args, **kwargs):
+    id = kwargs.get("id")
+    prdct = Products.objects.get(id=id)
+    usr = request.user
+    Carts.objects.create(user=usr, product=prdct)
+    messages.success(request, "Item successfully added to cart")
+    return redirect("user-home")
+
+@method_decorator(decs, name="dispatch")
+class CartListView(ListView):
+    template_name = "cart-list.html"
+    model = Carts
+    context_object_name = "carts"
+
+
+    def get(self, request, *args, **kwargs):
+        qs = Carts.objects.filter(user = request.user, status = "In-cart")
+        total = Carts.objects.filter(user = request.user, status = "In-cart").aggregate(tot =Sum("product__price" ))
+        return render(request, "cart-list.html", {"carts":qs, "total":total})
+
+    # def get_queryset(self) :
+    #     return Carts.objects.filter(user = self.request.user)
+
+@method_decorator(decs, name="dispatch")
+class CartDeleteView(View):
+    def get(self,request, *args, **kwargs):
+        id = kwargs.get("id")
+        Carts.objects.filter(user=request.user).get(id=id).delete()
+        messages.success(request, "Item removed from cart")
+        return redirect("cart-list")
+
+@method_decorator(decs, name="dispatch")       
+class OrderView(TemplateView):
+    template_name = "checkout.html"
+
+    def get(self, request, *args,**kwargs ):
+        pid = kwargs.get("pid")
+        qs = Products.objects.get(id=pid)
+        return render(request, "checkout.html", {"product":qs})
+
+    def post(self, request, *args, **kwargs):
+        cid = kwargs.get("cid")
+        pid = kwargs.get("pid")
+        cart = Carts.objects.get(id=cid)
+        product = Products.objects.get(id=pid)
+        user = request.user
+        mobile = request.POST.get("mobile")
+        address = request.POST.get("address")
+        Orders.objects.create(product=product, user=user, phone=mobile, address=address)
+        cart.status="Order-placed"
+        cart.save()
+        messages.success(request,"Your order has been placed")
+        return redirect("user-home")
+
+@method_decorator(decs, name="dispatch")
+class MyOrdersView(ListView):
+    model = Orders
+    template_name = "order-list.html"
+    context_object_name = "orders"
+
+    def get_queryset(self) :
+        return Orders.objects.filter(user=self.request.user)
+
+
+decs
+def cancelorder_view(request, *args, **kwargs):
+    id = kwargs.get("id")
+    Orders.objects.filter(id=id).update(status = "Cancelled")
+    messages.success(request, "Order has been cancelled")
+    return redirect("user-home")
+
+
+decs
+def logout_view(request, *args, **kwargs):
+    logout(request)
+    messages.success(request,"Logged Out")
+    return redirect("signin")

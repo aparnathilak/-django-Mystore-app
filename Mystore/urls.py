@@ -18,6 +18,8 @@ from django.urls import path,include
 from api import views
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import ObtainAuthToken
+from django.conf import settings
+from django.conf.urls.static import static
 
 router = DefaultRouter()
 router.register("api/products", views.ProductViewSetView, basename="products")
@@ -32,7 +34,7 @@ urlpatterns = [
                   path('token/', ObtainAuthToken.as_view()),
                   path("owner/", include("owner.urls")),
                   path("", include("customer.urls"))
-              ] + router.urls
+              ] + router.urls + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # rsw>routers.py>Default router class>register method
 # base name to add routers
